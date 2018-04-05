@@ -9,38 +9,14 @@
 #include <stdint.h>
 #include <string.h>
 
-#include <iostream>
-#include <fstream>
-#include <sstream>
+#include <midi/midi.h>
 
 namespace midi {
 
-enum midi_event_types {
-	EVENT_UNKNOWN,
+const char *header_magic = "MThd";
+const char *track_magic  = "MTrk";
 
-	// Channel voice messages
-	EVENT_MIDI_NOTE_ON,
-	EVENT_MIDI_NOTE_OFF,
-	EVENT_MIDI_POLY_PRESSURE,
-	EVENT_MIDI_CTRL_CHANGE,
-	EVENT_MIDI_PROC_CHANGE,
-	EVENT_MIDI_CHAN_PRESSURE,
-	EVENT_MIDI_PITCH_WHEEL,
-
-	// Channel mode messages
-	EVENT_MIDI_CHAN_MODE,
-
-	// meta messages
-	EVENT_META_TEXT,
-	EVENT_META_SEQUENCE,
-	EVENT_META_TRACK_END,
-	EVENT_META_TEMPO,
-	EVENT_META_TIME_SIG,
-	EVENT_META_KEY_SIG,
-	EVENT_META_SEQ_SPECIFIC,
-};
-
-const char *midi_event_strings[] {
+const char *event_strings[] {
 	"event_unknown",
 
 	"event_midi_note_on",
@@ -62,71 +38,21 @@ const char *midi_event_strings[] {
 	"event_meta_seq_specific",
 };
 
-const char *header_magic = "MThd";
-const char *track_magic  = "MTrk";
-
-typedef struct {
-	uint8_t magic[4];
-	uint8_t length[4];
-	uint8_t format[2];
-	uint8_t tracks[2];
-	uint8_t division[2];
-} __attribute__((packed)) file_t;
-
-typedef struct {
-	uint8_t magic[4];
-	uint8_t length[4];
-} __attribute__((packed)) track_t;
-
-typedef struct {
-	uint32_t num;
-	size_t   length;
-} varint_t;
-
-static inline uint32_t b32_field(const uint8_t *x){
-	return (x[0] << 24) | (x[1] << 16) | (x[2] << 8) | x[3];
-}
-
-static inline uint16_t b16_field(const uint8_t *x){
-	return (x[0] << 8) | x[1];
-}
-
-static inline varint_t var_field(const uint8_t *x){
-	varint_t ret = {.num = 0, .length = 1};
-
-	for (; *x & 0x80; x++) {
-		ret.num |=  *x & 0x7f;
-		ret.num <<= 7;
-		ret.length++;
+const char *midi_event_string(unsigned event){
+	if (event < EVENT_END){
+		return event_strings[event];
 	}
 
-	ret.num |= *x & 0x7f;
-
-	return ret;
+	return event_strings[EVENT_UNKNOWN];
 }
 
-// abstract class for different event types
-class event {
-	public:
-		event(const void *ptr){
-			data = ptr;
-			evdata = (const uint8_t *)ptr + delta_time().length;
-		};
-
-		uint32_t length(void);
-		uint32_t type(void);
-		// TODO: remove after things are working
-		uint32_t debug_bytes(void);
-
-		varint_t delta_time(void);
-		const uint8_t *evdata;
-
-	protected:
-		const void *data;
-};
-
+// event class implementations
 uint32_t event::debug_bytes(void){
 	return b32_field(evdata);
+}
+
+varint_t event::delta_time(void){
+	return var_field((const uint8_t *)data);
 }
 
 uint32_t event::length(void){
@@ -223,20 +149,36 @@ uint32_t event::type(void){
 	return EVENT_UNKNOWN;
 }
 
-// NOTE: events have basically entirely variable length fields, so there's no
-//       underlying struct here, offsets have to be computed dynamically
-class event_stream {
-	public:
-		event_stream(const void *ptr);
+bool event::is_midi(void){
+	unsigned t = type();
 
-		// TODO: wrap this up in an iterator
-		event get_event(void);
-		void next(void);
+	return t >= EVENT_MIDI_NOTE_ON && t <= EVENT_MIDI_CHAN_MODE;
+}
 
-	private:
-		const void *data;
-};
+uint8_t event::midi_channel(void){
+	return *evdata & 0xf;
+}
 
+uint16_t event::midi_data(void){
+	switch (type()) {
+		case EVENT_MIDI_NOTE_ON:
+		case EVENT_MIDI_NOTE_OFF:
+		case EVENT_MIDI_POLY_PRESSURE:
+		case EVENT_MIDI_CTRL_CHANGE:
+		case EVENT_MIDI_PITCH_WHEEL:
+		case EVENT_MIDI_CHAN_MODE:
+			return (evdata[2] << 7) | evdata[1];
+
+		case EVENT_MIDI_PROC_CHANGE:
+		case EVENT_MIDI_CHAN_PRESSURE:
+			return evdata[1];
+
+		default:
+			return 0;
+	}
+}
+
+// event_stream class implementations
 event event_stream::get_event(void){
 	return event(data);
 }
@@ -251,40 +193,11 @@ void event_stream::next(void){
 	data = (const uint8_t *)data + ev.length();
 }
 
-class track {
-	public:
-		track(const void *ptr);
-		static bool valid(const void *ptr);
-		uint32_t length(void);
-		event_stream events(void);
-
-	private:
-		const void *data;
-};
-
-class file {
-	public:
-		file(const void *ptr);
-		static bool valid(const void *ptr);
-		uint32_t length(void);
-		uint16_t format(void);
-		uint16_t tracks(void);
-		uint16_t division(void);
-
-		track get_track(uint32_t id);
-
-	private:
-		const void *data;
-};
-
 event_stream::event_stream(const void *ptr){
 	data = ptr;
 }
 
-varint_t event::delta_time(void){
-	return var_field((const uint8_t *)data);
-}
-
+// track class implementations
 bool track::valid(const void *ptr){
 	return memcmp(ptr, track_magic, 4) == 0;
 }
@@ -309,6 +222,7 @@ event_stream track::events(void){
 	return event_stream((const uint8_t *)data + sizeof(track_t));
 }
 
+// file class implementations
 bool file::valid(const void *ptr){
 	return memcmp(ptr, header_magic, 4) == 0;
 }
@@ -327,34 +241,6 @@ file::file(const void *ptr){
 		"div.:   %u\n\n",
 		length(), format(), tracks(), division()
 	);
-
-	for (unsigned i = 0; i < tracks(); i++) {
-		track temp = get_track(i);
-		event_stream stream = temp.events();
-		event ev = stream.get_event();
-
-		printf("have track with length %u\n", temp.length());
-		printf("  first event type: %02x (%s)\n",
-				ev.type(),
-				midi_event_strings[ev.type()]);
-		printf("  first event length: %u\n", ev.length());
-		printf("  events:\n");
-
-		while (ev.type() != EVENT_UNKNOWN && ev.type() != EVENT_META_TRACK_END) {
-			// TODO: wrap this up in an iterator
-			stream.next();
-			ev = stream.get_event();
-
-			printf("    %s (after %u)\n",
-					midi_event_strings[ev.type()],
-					ev.delta_time().num );
-
-			if (ev.type() == EVENT_UNKNOWN) {
-				printf("    event length: %u\n", ev.length());
-				printf("    debug: %08x\n", ev.debug_bytes());
-			}
-		}
-	}
 }
 
 uint32_t file::length(void){
@@ -392,23 +278,4 @@ track file::get_track(uint32_t id){
 }
 
 // namespace midi
-}
-
-int main(int argc, char *argv[]){
-	if (argc < 2){
-		puts("usage: midithing [midi file]");
-		return 1;
-	}
-
-	std::ifstream asdf(argv[1]);
-	std::stringstream stream;
-	stream << asdf.rdbuf();
-	std::string in = stream.str();
-
-	try {
-		midi::file thing(in.c_str());
-
-	} catch (const char *errormsg) {
-		printf("error: %s: %s\n", argv[1], errormsg);
-	}
 }
