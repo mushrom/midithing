@@ -25,6 +25,7 @@ static inline double note(unsigned i){
 
 int16_t synth::next_sample(void){
 	static double increment = (1.0 / sample_rate) * (16.35 / 2) /* C0 */ * 2*M_PI;
+	static double meh = 0.45;
 
 	tick += increment;
 
@@ -33,6 +34,11 @@ int16_t synth::next_sample(void){
 
 	//for (auto &ch : sequencer->channels){
 	for (unsigned k = 0; k < 16; k++) {
+		if (k == 9){
+			// skip percussion channel (for now)
+			// TODO: implement percussion
+			continue;
+		}
 		channel &ch = sequencer->channels[k];
 
 		for (unsigned i = 0; i < 128; i++){
@@ -44,12 +50,13 @@ int16_t synth::next_sample(void){
 
 			//sum += sin(tick * note( ch.active[i] ));
 			double x = sin(tick * note( ch.active[i] ));
+			double foo = meh + sin(tick / 100)/6;
 
-			if (x > 0.4)  x =  1;
-			if (x < -0.4) x = -1;
-			//sum += x;
+			if (x >  foo) x =  1;
+			if (x < -foo) x = -1;
+
 			// reduce abrasiveness of trebly notes
-			if (key > 60) x *= 0.80;
+			if (key > 64) x *= 0.80;
 			sum += x * (velocity / 127.0);
 
 			voices += 1;

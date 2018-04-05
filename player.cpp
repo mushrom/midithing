@@ -5,6 +5,7 @@
 #include <limits.h>
 #include <unistd.h>
 #include <string.h>
+#include <time.h>
 
 namespace midi {
 
@@ -50,9 +51,7 @@ void channel::regen_active(void){
 
 player::player(file f){
 	// default tempo of 120 bpm
-	// XXX: tempo is not actually 120 right now, for debugging
-	//usecs_per_tick = 1000000 / 217;
-	usecs_per_tick = 1000000 / 120;
+	usecs_per_tick = (60000.0 / (120 * f.division())) * 1000;
 	load_tracks(f);
 }
 
@@ -134,6 +133,8 @@ void print_event(event &ev){
 }
 
 void player::play(void){
+	clock_t start = clock();
+
 	while (tracks_active() > 0) {
 		bool any_ready = false;
 		uint32_t min_next = UINT_MAX;
@@ -174,8 +175,17 @@ void player::play(void){
 		if (min_next != UINT_MAX){
 			uint32_t delta = min_next - tick;
 
-			usleep(delta * usecs_per_tick);
+			// TODO: remove this
+			fflush(stdout);
+			//printf("::: time delta (approx): %u\n", clock() - start);
+
+			clock_t fin = clock();
+			clock_t run_adjust = (fin - start);
+
+			usleep(delta * usecs_per_tick - run_adjust);
+			//usleep(delta * usecs_per_tick);
 			tick += delta;
+			start = clock();
 		}
 	}
 
