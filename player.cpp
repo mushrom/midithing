@@ -19,7 +19,8 @@ void channel::note_on(uint16_t midi_data){
 	uint8_t velocity = midi_data >> 7;
 
 	notemap[key] = velocity;
-	regen_active();
+	changed = true;
+	//regen_active();
 
 	printf("::: channel: key %u on, velocity %u\n", key, velocity);
 }
@@ -29,10 +30,22 @@ void channel::note_off(uint16_t midi_data){
 	uint8_t velocity = midi_data >> 7;
 
 	notemap[key] = 0;
-	regen_active();
+	changed = true;
+	//regen_active();
 
 	printf("::: channel: key %u off, velocity %u\n", key, velocity);
 }
+
+void channel::update(void){
+	if (!changed){
+		// active buffer is still valid, no need to regenerate it
+		return;
+	}
+
+	regen_active();
+	changed = false;
+}
+
 
 void channel::regen_active(void){
 	unsigned k = 0;
@@ -168,6 +181,10 @@ void player::play(void){
 			} else if (x.next_tick < min_next) {
 				min_next = x.next_tick;
 			}
+		}
+
+		for (auto &x : channels){
+			x.update();
 		}
 
 		if (min_next != UINT_MAX){

@@ -24,8 +24,10 @@ class channel {
 		// active note buffer, so that the synth doesn't need to rescan
 		// the notemap for each sample
 		uint8_t active[128];
+		void update(void);
 	
 	private:
+		bool changed = false;
 		void regen_active(void);
 };
 
