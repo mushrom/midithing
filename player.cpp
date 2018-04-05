@@ -36,7 +36,6 @@ void channel::note_off(uint16_t midi_data){
 
 void channel::regen_active(void){
 	unsigned k = 0;
-	active[0] = 0;
 
 	for (unsigned i = 0; i < 128; i++) {
 		if (notemap[i]) {
@@ -44,7 +43,7 @@ void channel::regen_active(void){
 		}
 	}
 
-	if (k && k < 128) {
+	if (k < 128) {
 		active[k] = 0;
 	}
 }
@@ -153,10 +152,9 @@ void player::play(void){
 				event ev = x.stream.get_event();
 
 				do {
-					ev = x.stream.get_event();
-					print_event(ev);
 					interpret(ev);
 					x.stream.next();
+					ev = x.stream.get_event();
 				} while (ev.delta_time().num == 0 && ev.type() != EVENT_META_TRACK_END);
 
 				x.next_tick = tick + ev.delta_time().num;
@@ -195,6 +193,8 @@ void player::play(void){
 }
 
 void player::interpret(event &ev){
+	print_event(ev);
+
 	switch (ev.type()) {
 		case EVENT_MIDI_NOTE_ON:
 			channels[ev.midi_channel()].note_on(ev.midi_data());
