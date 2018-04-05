@@ -4,14 +4,21 @@
 #include <stdio.h>
 #include <limits.h>
 #include <unistd.h>
+#include <string.h>
 
 namespace midi {
+
+channel::channel(){
+	memset(notemap, 0, sizeof(notemap));
+	memset(active, 0, sizeof(active));
+}
 
 void channel::note_on(uint16_t midi_data){
 	uint8_t key = midi_data & 0x7f;
 	uint8_t velocity = midi_data >> 7;
 
 	notemap[key] = velocity;
+	regen_active();
 
 	printf("::: channel: key %u on, velocity %u\n", key, velocity);
 }
@@ -21,14 +28,31 @@ void channel::note_off(uint16_t midi_data){
 	uint8_t velocity = midi_data >> 7;
 
 	notemap[key] = 0;
+	regen_active();
 
 	printf("::: channel: key %u off, velocity %u\n", key, velocity);
+}
+
+void channel::regen_active(void){
+	unsigned k = 0;
+	active[0] = 0;
+
+	for (unsigned i = 0; i < 128; i++) {
+		if (notemap[i]) {
+			active[k++] = i;
+		}
+	}
+
+	if (k && k < 128) {
+		active[k] = 0;
+	}
 }
 
 player::player(file f){
 	// default tempo of 120 bpm
 	// XXX: tempo is not actually 120 right now, for debugging
-	usecs_per_tick = 20000000 / 120 / 24;
+	//usecs_per_tick = 1000000 / 217;
+	usecs_per_tick = 1000000 / 120;
 	load_tracks(f);
 }
 
@@ -102,6 +126,11 @@ void print_event(event &ev){
 	}
 
 	printf("\n");
+
+	if (ev.type() == EVENT_UNKNOWN) {
+		printf("    event length: %u\n", ev.length());
+		printf("    debug: %08x\n", ev.debug_bytes());
+	}
 }
 
 void player::play(void){
@@ -131,7 +160,7 @@ void player::play(void){
 
 				x.next_tick = tick + ev.delta_time().num;
 
-				if (ev.type() == EVENT_META_TRACK_END){
+				if (ev.type() == EVENT_META_TRACK_END || ev.type() == EVENT_UNKNOWN){
 					x.active = false;
 				}
 
@@ -149,6 +178,10 @@ void player::play(void){
 			tick += delta;
 		}
 	}
+
+	// and there's nothing left to play
+	// TODO: if looping is enabled, reset all tracks and start from the beginning
+	state = PLAYER_STOPPED;
 }
 
 void player::interpret(event &ev){

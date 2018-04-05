@@ -1,10 +1,10 @@
-CXXFLAGS += -O2 -Wall -I./include
+CXXFLAGS += -O2 -Wall -I./include -lpthread
 
 SRC = $(wildcard *.cpp)
 OBJ = $(SRC:.cpp=.o)
 
 midithing: $(OBJ)
-	$(CXX) $(CFLAGS) $(OBJ) -o $@
+	$(CXX) $(CXXFLAGS) $(OBJ) -o $@
 
 .PHONY: clean
 clean:

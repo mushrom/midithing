@@ -8,6 +8,7 @@
 
 #include <midi/midi.h>
 #include <midi/player.h>
+#include <midi/synth.h>
 
 int main(int argc, char *argv[]){
 	if (argc < 3){
@@ -29,7 +30,12 @@ int main(int argc, char *argv[]){
 		midi::player player(thing);
 
 		if (action == "dump") player.dump_tracks();
-		if (action == "play") player.play();
+		if (action == "play"){
+			midi::synth syn(&player, 44100);
+
+			syn.start();
+			player.play();
+		}
 
 	} catch (const char *errormsg) {
 		printf("error: %s: %s\n", argv[1], errormsg);

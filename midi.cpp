@@ -36,6 +36,10 @@ const char *event_strings[] {
 	"event_meta_time_sig",
 	"event_meta_key_sig",
 	"event_meta_seq_specific",
+	"event_meta_midi_port",
+	"event_meta_chan_prefix",
+
+	"event_end (shouldn't get here)",
 };
 
 const char *midi_event_string(unsigned event){
@@ -66,6 +70,10 @@ uint32_t event::length(void){
 		case EVENT_MIDI_PITCH_WHEEL:
 		case EVENT_META_TRACK_END:
 			return delta + 3;
+
+		case EVENT_META_MIDI_PORT:
+		case EVENT_META_CHAN_PREFIX:
+			return delta + 4;
 
 		case EVENT_META_TEXT:
 		case EVENT_META_SEQ_SPECIFIC:
@@ -115,6 +123,14 @@ uint32_t event::type(void){
 
 		else if (metatype == 0x0 && *(evdata + 2) == 0x2){
 			return EVENT_META_SEQUENCE;
+		}
+
+		else if (metatype == 0x20){
+			return EVENT_META_CHAN_PREFIX;
+		}
+
+		else if (metatype == 0x21){
+			return EVENT_META_MIDI_PORT;
 		}
 
 		else if (metatype == 0x2f){
