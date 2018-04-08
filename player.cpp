@@ -67,6 +67,10 @@ player::player(file f){
 	load_tracks(f);
 }
 
+void player::set_synth(synth *syn){
+	synthesizer = syn;
+}
+
 void player::load_tracks(file f){
 	for (unsigned i = 0; i < f.tracks(); i++) {
 		track temp = f.get_track(i);
@@ -197,8 +201,7 @@ void player::play(void){
 			clock_t fin = clock();
 			clock_t run_adjust = (fin - start);
 
-			usleep(delta * usecs_per_tick - run_adjust);
-			//usleep(delta * usecs_per_tick);
+			synthesizer->wait(delta * usecs_per_tick);
 			tick += delta;
 			start = clock();
 		}

@@ -1,6 +1,13 @@
 #pragma once
 
+namespace midi {
+	class channel;
+	class player_track;
+	class player;
+}
+
 #include <midi/midi.h>
+#include <midi/synth.h>
 #include <vector>
 
 namespace midi {
@@ -50,6 +57,7 @@ class player {
 		void dump_tracks(void);
 		void interpret(event &ev);
 		unsigned tracks_active(void);
+		void set_synth(synth *syn);
 
 		void play(void);
 		void stop(void);
@@ -57,6 +65,7 @@ class player {
 		uint32_t usecs_per_tick;
 		uint32_t tick;
 		unsigned state = PLAYER_INITIALIZED;
+		synth *synthesizer = NULL;
 };
 
 // namespace midi

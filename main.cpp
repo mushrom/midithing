@@ -33,7 +33,7 @@ int main(int argc, char *argv[]){
 		if (action == "play"){
 			midi::synth syn(&player, 44100);
 
-			syn.start();
+			player.set_synth(&syn);
 			player.play();
 		}
 

@@ -11,12 +11,18 @@ namespace midi {
 synth::synth(player *play, uint32_t rate){
 	sequencer = play;
 	sample_rate = rate;
+	//sample_rate = 16000;
 	tick = 0;
+
+	// XXX: use proper alsa api in the future
+	alsa = popen("aplay -f cd", "w");
+	//alsa = popen("aplay -f S16_LE -c 2 -r 16000", "w");
+	puts("::: synth worker started");
 }
 
 synth::~synth(){
-	handle.join();
-	puts("::: synth worker exited");
+	pclose(alsa);
+	puts("::: synth exited");
 }
 
 static inline double note(unsigned i){
@@ -209,28 +215,17 @@ int16_t synth::next_sample(void){
 
 // TODO: when this gets ported to run on some mcus, the loop contents will
 //       be run from an interrupt routine, rather than running in it's own thread
-void synth::worker(void){
-	puts("::: synth started!");
+void synth::wait(uint32_t usecs){
 	double foo = 0;
 
-	// XXX: use proper alsa api in the future
-	FILE *alsa = popen("aplay -f cd", "w");
-	int16_t sample = 0;
+	uint32_t samples = sample_rate * (usecs / 1000000.0);
 
-	while (sequencer->state != PLAYER_STOPPED){
+	for (uint32_t i = 0; i < samples; i++) {
+		int16_t sample = next_sample();
+
 		fwrite(&sample, 2, 1, alsa);
 		fwrite(&sample, 2, 1, alsa);
-
-		// compute next sample /after/ writing avoid delays in next write
-		sample = next_sample();
 	}
-
-	pclose(alsa);
-	puts("::: synth worker done");
-}
-
-void synth::start(void){
-	handle = std::thread(&synth::worker, this);
 }
 
 // namespace midi
