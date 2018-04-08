@@ -149,15 +149,12 @@ void print_event(event &ev){
 }
 
 void player::play(void){
-	clock_t start = clock();
-
 	while (tracks_active() > 0) {
-		bool any_ready = false;
 		uint32_t min_next = UINT_MAX;
 
 		for (auto &x : tracks) {
-
 	reinterpret:
+
 			if (!x.active){
 				continue;
 			}
@@ -165,7 +162,6 @@ void player::play(void){
 			// TODO: This assumes the first event has a delta of zero, which might
 			//       not be the case, and will throw off timing it's not
 			if (x.next_tick <= tick) {
-				any_ready = true;
 				event ev = x.stream.get_event();
 
 				do {
@@ -194,16 +190,8 @@ void player::play(void){
 		if (min_next != UINT_MAX){
 			uint32_t delta = min_next - tick;
 
-			// TODO: remove this
-			fflush(stdout);
-			//printf("::: time delta (approx): %u\n", clock() - start);
-
-			clock_t fin = clock();
-			clock_t run_adjust = (fin - start);
-
 			synthesizer->wait(delta * usecs_per_tick);
 			tick += delta;
-			start = clock();
 		}
 	}
 
@@ -222,6 +210,12 @@ void player::interpret(event &ev){
 
 		case EVENT_MIDI_NOTE_OFF:
 			channels[ev.midi_channel()].note_off(ev.midi_data());
+			break;
+
+		case EVENT_MIDI_PROC_CHANGE:
+			channels[ev.midi_channel()].instrument = ev.midi_data();
+			printf("::: channel: set instrument %u (group: %u)\n",
+			       ev.midi_data(), ev.midi_data()/8 );
 			break;
 
 		default:

@@ -77,50 +77,54 @@ static uint16_t percussion_buf[0x40];
 static double kick(unsigned index, double tick){
 	percussion_buf[index]--;
 	double foo = 1 - (percussion_buf[index] / 4000.0);
-	double a = clipped_sin(note(70), 0.4);
-	double b = clipped_sin(d_note(80 - foo * 8), foo);
+	double impulse = foo / 32;
+	double impulse_adjust = 1 - impulse;
 
-	return amplify((a + b) / 2, 0.5);
-	//return 0;
-	//return (a + b) / 2;
+	double a = clipped_sin(note(70), 0.3);
+	double b = clipped_sin(d_note(80 - foo * 8), 0.4 + foo/2);
+	double c = squarewave(tick * note(24)) * impulse;
+
+	return amplify((a*1.4 + b*1.5 + c*0.20) / (3 - impulse_adjust), 0.55);
 }
 
 static double snare(unsigned index, double tick){
 	percussion_buf[index]--;
 	double foo = 1 - (percussion_buf[index] / 4000.0);
+	double impulse = foo / 32;
+	double impulse_adjust = 1 - impulse;
 
-	//double a = white_noise() * (foo / 2);
 	double a = clipped_sin(note(84), foo);
-	double b = clipped_sin(d_note(92 - foo * 12), foo);
+	double b = clipped_sin(d_note(92 - foo * 10), foo);
+	double c = squarewave(tick * note(24)) * impulse;
 
-	//return (a + b) / 2;
-	return amplify((a + b) / 2, 0.5);
-	//return 0;
-	//return (a + b) / 2;
+	return amplify((a*1.35 + b*1.45 + c*0.20) / (3 - impulse_adjust), 0.7);
 }
 
 static double tom(unsigned index, double tick){
 	percussion_buf[index]--;
 	double foo = 1 - (percussion_buf[index] / 4000.0);
+	double impulse = foo / 32;
+	double impulse_adjust = 1 - impulse;
 
-	//double a = white_noise() * (foo / 2);
 	double a = clipped_sin(note(78), foo);
 	double b = clipped_sin(d_note(84 - foo * 10), foo);
+	double c = squarewave(tick * note(24)) * impulse;
 
-	return amplify((a + b) / 2, 0.5);
+	return amplify((a*1.4 + b*1.5 + c*0.20) / (3 - impulse_adjust), 0.7);
 }
 
 static double hihat(unsigned index, double tick){
 	percussion_buf[index]--;
-	double foo = (1 - (percussion_buf[index] / 4000.0)) / 2;
+	double foo = (1 - (percussion_buf[index] / 4000.0)) / 8;
 
 	double a = white_noise() * foo;
-	//double b = clipped_sin(tick * d_note(64 - foo * 8), 0.1);
+	double b = squarewave(tick * note(24)) * (foo / 4);
+	double x = (a + b) / 2;
 
-	return a;
-	//return (a + b) / 2;
-	//return 0;
-	//return (a + b) / 2;
+	x = amplify(x, 0.7);
+	x *= 0.6;
+
+	return x;
 }
 
 static double do_percussion(unsigned index, double tick){
@@ -152,9 +156,83 @@ static double do_percussion(unsigned index, double tick){
 	}
 }
 
+static double synth_lead(double tick, unsigned key){
+	return clipped_sin(tick * note(key), 0.4) * 0.80;
+}
+
+static double synth_pad(double tick, unsigned key){
+	double foo = sin(tick / 100)/8;
+
+	return clipped_sin(tick * note(key), 0.7 + foo) * 0.70;
+}
+
+static double synth_bass(double tick, unsigned key){
+	return clipped_sin(tick * note(key), 0.8);
+}
+
+static double synth_guitar(double tick, unsigned key){
+	double foo = sin(tick)/8;
+
+	double a = clipped_sin(tick * note(key), 0.5);
+	double b = clipped_sin(tick * note(key + 12), 0.8 - foo);
+
+	return ((a + b) / 2) * 0.80;
+}
+
+static double synth_organ(double tick, unsigned key){
+	double a = clipped_sin(tick * note(key), 0.9);
+	double b = sin(tick * note(key - 12));
+
+	return (a*1.20 + b*0.80) / 2;
+}
+
+static double synth_ensemble(double tick, unsigned key){
+	double a = sin(tick * note(key));
+
+	return amplify(a, 0.3);
+}
+
+static double gen_instrument(unsigned instrument, double tick, unsigned key){
+	switch (instrument >> 3) {
+		// Organ
+		case 2: return synth_organ(tick, key);
+		// Guitar
+		case 3: return synth_guitar(tick, key);
+		// Bass
+		case 4: return synth_bass(tick, key);
+		// Ensemble
+		case 6: return synth_ensemble(tick, key);
+		// Synth lead
+		case 10: return synth_lead(tick, key);
+		// Synth pad
+		case 11: return synth_pad(tick, key);
+
+		// Piano
+		case 0:
+		// Chromatic percussion
+		case 1:
+		// Strings
+		case 5:
+		// Brass
+		case 7:
+		// Reed
+		case 8:
+		// Pipe
+		case 9:
+		// Synth effects
+		case 12:
+		// Ethnic
+		case 13:
+		// Percussive
+		case 14:
+		// Sound effects
+		case 15:
+		default: return synth_pad(tick, key);
+	}
+}
+
 int16_t synth::next_sample(void){
 	static double increment = (1.0 / sample_rate) * (16.35 / 2) /* C0 */ * 2*M_PI;
-	static double meh = 0.6;
 
 	tick += increment;
 
@@ -191,10 +269,7 @@ int16_t synth::next_sample(void){
 			}
 
 			uint8_t velocity = ch.notemap[key];
-
-			double foo = meh + sin(tick / 100)/7;
-			double x = clipped_sin(tick * note(ch.active[i]), foo);
-			//double x = clipped_sin(tick * note(ch.active[i]), 0.7);
+			double x = gen_instrument(ch.instrument, tick, key);
 
 			sum += x * (velocity / 127.0);
 			voices += 1;
@@ -203,7 +278,9 @@ int16_t synth::next_sample(void){
 
 	for (unsigned k = 0; k < 0x40; k++) {
 		if (percussion_buf[k] > 2) {
-			sum += do_percussion(k, tick);
+			uint8_t velocity = sequencer->channels[9].notemap[k + 35];
+
+			sum += do_percussion(k, tick) * (velocity / 127.0);
 			voices += 1;
 		}
 	}
