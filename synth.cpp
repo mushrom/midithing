@@ -14,14 +14,10 @@ synth::synth(player *play, uint32_t rate){
 	//sample_rate = 16000;
 	tick = 0;
 
-	// XXX: use proper alsa api in the future
-	alsa = popen("aplay -f cd", "w");
-	//alsa = popen("aplay -f S16_LE -c 2 -r 16000", "w");
 	puts("::: synth worker started");
 }
 
 synth::~synth(){
-	pclose(alsa);
 	puts("::: synth exited");
 }
 
@@ -295,21 +291,6 @@ int16_t synth::next_sample(void){
 
 	static double thresh_state = 1;
 	return 0x7fff * ghetto_limiter(sum, &thresh_state);
-}
-
-// TODO: when this gets ported to run on some mcus, the loop contents will
-//       be run from an interrupt routine, rather than running in it's own thread
-void synth::wait(uint32_t usecs){
-	double foo = 0;
-
-	uint32_t samples = sample_rate * (usecs / 1000000.0);
-
-	for (uint32_t i = 0; i < samples; i++) {
-		int16_t sample = next_sample();
-
-		fwrite(&sample, 2, 1, alsa);
-		fwrite(&sample, 2, 1, alsa);
-	}
 }
 
 // namespace midi

@@ -9,11 +9,17 @@
 #include <midi/midi.h>
 #include <midi/player.h>
 #include <midi/synth.h>
+#include <midi/wavsynth.h>
+#include <midi/alsasynth.h>
 
 int main(int argc, char *argv[]){
 	if (argc < 3){
-		puts("usage: midithing [action] [midi file]");
-		puts("actions: play dump help");
+		puts("usage:");
+		puts("    midithing help");
+		puts("    midithing dump [midi file]");
+		puts("    midithing play [midi file]");
+		puts("    midithing wav  [midi file] [output .wav]");
+
 		return 1;
 	}
 
@@ -29,11 +35,26 @@ int main(int argc, char *argv[]){
 		midi::file   thing(in.c_str());
 		midi::player player(thing);
 
-		if (action == "dump") player.dump_tracks();
-		if (action == "play"){
-			midi::synth syn(&player, 44100);
+		if (action == "dump"){
+			player.dump_tracks();
+		}
+
+		else if (action == "play"){
+			midi::alsasynth syn(&player, 44100);
 
 			player.set_synth(&syn);
+			player.play();
+		}
+
+		else if (action == "wav"){
+			if (argc < 4) {
+				throw "need output file name (try `midithing help`)";
+			}
+
+			std::string outfile = argv[3];
+			midi::wavsynth wav(&player, 44100, outfile);
+
+			player.set_synth(&wav);
 			player.play();
 		}
 

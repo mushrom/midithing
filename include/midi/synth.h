@@ -6,9 +6,7 @@ namespace midi {
 
 #include <midi/midi.h>
 #include <midi/player.h>
-#include <thread>
 
-#include <stdio.h>
 
 namespace midi {
 
@@ -16,15 +14,15 @@ class synth {
 	public:
 		synth(player *play, uint32_t rate);
 		~synth();
-		void wait(uint32_t usecs);
+		virtual void wait(uint32_t usecs) = 0;
+
+	protected:
+		int16_t next_sample(void);
+		uint32_t sample_rate;
 
 	private:
-		int16_t next_sample(void);
-
-		double tick;
 		player *sequencer;
-		uint32_t sample_rate;
-		FILE *alsa;
+		double tick;
 };
 
 // namespace midi
