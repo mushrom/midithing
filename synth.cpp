@@ -122,7 +122,7 @@ static double hihat(unsigned index, double tick){
 	double x = (a + b) / 2;
 
 	x = amplify(x, 0.7);
-	x *= 0.6;
+	x *= 0.4;
 
 	return x;
 }
@@ -231,13 +231,23 @@ static double gen_instrument(unsigned instrument, double tick, unsigned key){
 	}
 }
 
+static double ghetto_limiter(double x, double *thresh){
+	if (*thresh > 1){
+		*thresh -= 0.0001;
+	}
+
+	if (x > *thresh)  *thresh = x;
+	if (x < -*thresh) *thresh = -x;
+
+	return x / *thresh;
+}
+
 int16_t synth::next_sample(void){
 	static double increment = (1.0 / sample_rate) * (16.35 / 2) /* C0 */ * 2*M_PI;
 
 	tick += increment;
 
 	double sum = 0;
-	unsigned voices = 0;
 
 	for (unsigned k = 0; k < 16; k++) {
 		channel &ch = sequencer->channels[k];
@@ -271,8 +281,7 @@ int16_t synth::next_sample(void){
 			uint8_t velocity = ch.notemap[key];
 			double x = gen_instrument(ch.instrument, tick, key);
 
-			sum += x * (velocity / 127.0);
-			voices += 1;
+			sum += x * (velocity / 127.0) * 0.3;
 		}
 	}
 
@@ -280,14 +289,12 @@ int16_t synth::next_sample(void){
 		if (percussion_buf[k] > 2) {
 			uint8_t velocity = sequencer->channels[9].notemap[k + 35];
 
-			sum += do_percussion(k, tick) * (velocity / 127.0);
-			voices += 1;
+			sum += do_percussion(k, tick) * (velocity / 127.0) * 0.33;
 		}
 	}
 
-	double foo = voices? sum / voices : 0;
-
-	return 0x7fff * foo;
+	static double thresh_state = 1;
+	return 0x7fff * ghetto_limiter(sum, &thresh_state);
 }
 
 // TODO: when this gets ported to run on some mcus, the loop contents will
