@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <limits.h>
 
 #include <iostream>
 #include <fstream>
@@ -18,6 +19,7 @@ int main(int argc, char *argv[]){
 		puts("    midithing help");
 		puts("    midithing dump [midi file]");
 		puts("    midithing play [midi file]");
+		puts("    midithing loop [midi file] [[loops]]");
 		puts("    midithing wav  [midi file] [output .wav]");
 
 		return 1;
@@ -44,6 +46,18 @@ int main(int argc, char *argv[]){
 
 			player.set_synth(&syn);
 			player.play();
+		}
+
+		else if (action == "loop"){
+			unsigned loops = UINT_MAX;
+			midi::alsasynth syn(&player, 44100);
+
+			if (argc >= 4){
+				loops = atoi(argv[3]);
+			}
+
+			player.set_synth(&syn);
+			player.loop(loops);
 		}
 
 		else if (action == "wav"){

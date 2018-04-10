@@ -117,6 +117,7 @@ class event_stream {
 
 class track {
 	public:
+		track(){}
 		track(const void *ptr);
 		static bool valid(const void *ptr);
 		uint32_t length(void);

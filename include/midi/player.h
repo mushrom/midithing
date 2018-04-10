@@ -40,8 +40,17 @@ class channel {
 
 class player_track {
 	public:
-		player_track(event_stream strm){ stream = strm; }
+		player_track(track trk){
+			ptrack = trk;
+			stream = ptrack.events();
+		}
 
+		void reset(void){
+			stream = ptrack.events();
+			active = true;
+		}
+
+		track ptrack;
 		event_stream stream;
 		uint32_t next_tick = 0;
 		bool active = true;
@@ -60,6 +69,7 @@ class player {
 		void set_synth(synth *syn);
 
 		void play(void);
+		void loop(unsigned loops);
 		void stop(void);
 	
 		uint32_t usecs_per_tick;

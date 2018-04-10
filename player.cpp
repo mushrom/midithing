@@ -74,9 +74,7 @@ void player::set_synth(synth *syn){
 void player::load_tracks(file f){
 	for (unsigned i = 0; i < f.tracks(); i++) {
 		track temp = f.get_track(i);
-		event_stream stream = temp.events();
-
-		tracks.push_back(player_track(stream));
+		tracks.push_back(player_track(temp));
 
 		printf("have track with length %u\n", temp.length());
 	}
@@ -198,6 +196,16 @@ void player::play(void){
 	// and there's nothing left to play
 	// TODO: if looping is enabled, reset all tracks and start from the beginning
 	state = PLAYER_STOPPED;
+}
+
+void player::loop(unsigned loops){
+	for (unsigned i = 0; i < loops; i++) {
+		play();
+
+		for (auto &x : tracks) {
+			x.reset();
+		}
+	}
 }
 
 void player::interpret(event &ev){
