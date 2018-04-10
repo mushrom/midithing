@@ -22,8 +22,10 @@ class wavsynth : public synth {
 		virtual void wait(uint32_t usecs);
 	
 	private:
-		std::vector<int16_t> samples;
-		std::string output;
+		void write_header(void);
+		size_t samples;
+		//std::vector<int16_t> samples;
+		FILE *fp;
 };
 
 enum {

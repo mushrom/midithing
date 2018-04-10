@@ -4,13 +4,7 @@
 
 namespace midi {
 
-wavsynth::wavsynth(player *play, uint32_t rate, std::string outfile)
-	: synth(play, rate)
-{
-	output = outfile;
-}
-
-wavsynth::~wavsynth(){
+void wavsynth::write_header(void){
 	wav_header_t header;
 	// TODO: change this once stereo is implemented
 	unsigned channels = 1;
@@ -31,24 +25,38 @@ wavsynth::~wavsynth(){
 	header.wave.bits_per_sample = 16;
 
 	// set values in data chunk
-	header.pcm.size = 2 * samples.size() * channels;
+	header.pcm.size = 2 * samples * channels;
 
 	// set size of the top-level header
-	header.size = 36 + header.pcm.size + (samples.size() % 2);
+	header.size = 36 + header.pcm.size + (samples % 2);
 
-	// finally write the data
-	FILE *fp = fopen(output.c_str(), "w");
 	fwrite(&header, sizeof(header), 1, fp);
+}
 
-	for (int16_t x : samples){
-		fwrite(&x, 2, 1, fp);
+wavsynth::wavsynth(player *play, uint32_t rate, std::string outfile)
+	: synth(play, rate)
+{
+	samples = 0;
+	fp = fopen(outfile.c_str(), "w");
+
+	if (!fp) {
+		throw "could not open " + outfile + " for writing";
 	}
 
-	if (samples.size() % 2){
+	// write a stub header which will be overwritten once all the samples
+	// have been written
+	write_header();
+}
+
+wavsynth::~wavsynth(){
+	// padding byte if the number of samples is odd
+	if (samples % 2){
 		uint8_t x = 0;
 		fwrite(&x, 1, 1, fp);
 	}
 
+	fseek(fp, 0, SEEK_SET);
+	write_header();
 	fclose(fp);
 }
 
@@ -57,8 +65,8 @@ void wavsynth::wait(uint32_t usecs){
 
 	for (uint32_t i = 0; i < num; i++) {
 		int16_t sample = next_sample();
-
-		samples.push_back(sample);
+		fwrite(&sample, 2, 1, fp);
+		samples++;
 	}
 }
 
