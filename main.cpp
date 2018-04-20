@@ -11,7 +11,7 @@
 #include <midi/player.h>
 #include <midi/synth.h>
 #include <midi/wavsynth.h>
-#include <midi/alsasynth.h>
+#include <midi/paudiosynth.h>
 
 int main(int argc, char *argv[]){
 	if (argc < 3){
@@ -42,7 +42,7 @@ int main(int argc, char *argv[]){
 		}
 
 		else if (action == "play"){
-			midi::alsasynth syn(&player, 44100);
+			midi::paudiosynth syn(&player, 44100);
 
 			player.set_synth(&syn);
 			player.play();
@@ -50,7 +50,7 @@ int main(int argc, char *argv[]){
 
 		else if (action == "loop"){
 			unsigned loops = UINT_MAX;
-			midi::alsasynth syn(&player, 44100);
+			midi::paudiosynth syn(&player, 44100);
 
 			if (argc >= 4){
 				loops = atoi(argv[3]);

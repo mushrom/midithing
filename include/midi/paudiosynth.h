@@ -1,7 +1,7 @@
 #pragma once
 
 namespace midi {
-	class alsasynth;
+	class paudiosynth;
 }
 
 #include <midi/midi.h>
@@ -11,15 +11,15 @@ namespace midi {
 
 namespace midi {
 
-class alsasynth : public synth {
+class paudiosynth : public synth {
 	public:
-		alsasynth(player *play, uint32_t rate);
-		~alsasynth();
+		paudiosynth(player *play, uint32_t rate);
+		~paudiosynth();
 
 		virtual void wait(uint32_t usecs);
 
 	private:
-		FILE *alsa;
+		FILE *paudio;
 };
 
 // namespace midi
