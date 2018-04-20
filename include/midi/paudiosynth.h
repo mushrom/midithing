@@ -8,6 +8,7 @@ namespace midi {
 #include <midi/player.h>
 #include <midi/synth.h>
 #include <stdio.h>
+#include <portaudio.h>
 
 namespace midi {
 
@@ -19,7 +20,8 @@ class paudiosynth : public synth {
 		virtual void wait(uint32_t usecs);
 
 	private:
-		FILE *paudio;
+		PaStream* stream;
+		PaStreamParameters audio_params;
 };
 
 // namespace midi

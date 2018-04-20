@@ -1,4 +1,4 @@
-CXXFLAGS += -O2 -Wall -I./include -lpthread
+CXXFLAGS += -O2 -Wall -I./include -lpthread -lportaudio
 
 SRC = $(wildcard *.cpp)
 OBJ = $(SRC:.cpp=.o)
