@@ -20,6 +20,13 @@ class synth {
 		int16_t next_sample(void);
 		uint32_t sample_rate;
 
+		double kick(unsigned index, double tick);
+		double snare(unsigned index, double tick);
+		double tom(unsigned index, double tick);
+		double hihat(unsigned index, double tick);
+		double do_percussion(unsigned index, double tick);
+		double perc_time;
+
 	private:
 		player *sequencer;
 		double tick;

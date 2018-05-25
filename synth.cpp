@@ -11,7 +11,7 @@ namespace midi {
 synth::synth(player *play, uint32_t rate){
 	sequencer = play;
 	sample_rate = rate;
-	//sample_rate = 16000;
+	perc_time = 4000 * (sample_rate / 44100.0);
 	tick = 0;
 
 	puts("::: synth worker started");
@@ -70,9 +70,9 @@ static inline double white_noise(void){
 
 static uint16_t percussion_buf[0x40];
 
-static double kick(unsigned index, double tick){
+double synth::kick(unsigned index, double tick){
 	percussion_buf[index]--;
-	double foo = 1 - (percussion_buf[index] / 4000.0);
+	double foo = 1 - (percussion_buf[index] / perc_time);
 	double impulse = foo / 32;
 	double impulse_adjust = 1 - impulse;
 
@@ -83,9 +83,9 @@ static double kick(unsigned index, double tick){
 	return amplify((a*1.4 + b*1.5 + c*0.20) / (3 - impulse_adjust), 0.55);
 }
 
-static double snare(unsigned index, double tick){
+double synth::snare(unsigned index, double tick){
 	percussion_buf[index]--;
-	double foo = 1 - (percussion_buf[index] / 4000.0);
+	double foo = 1 - (percussion_buf[index] / perc_time);
 	double impulse = foo / 32;
 	double impulse_adjust = 1 - impulse;
 
@@ -96,9 +96,9 @@ static double snare(unsigned index, double tick){
 	return amplify((a*1.35 + b*1.45 + c*0.20) / (3 - impulse_adjust), 0.7);
 }
 
-static double tom(unsigned index, double tick){
+double synth::tom(unsigned index, double tick){
 	percussion_buf[index]--;
-	double foo = 1 - (percussion_buf[index] / 4000.0);
+	double foo = 1 - (percussion_buf[index] / perc_time);
 	double impulse = foo / 32;
 	double impulse_adjust = 1 - impulse;
 
@@ -109,9 +109,9 @@ static double tom(unsigned index, double tick){
 	return amplify((a*1.4 + b*1.5 + c*0.20) / (3 - impulse_adjust), 0.7);
 }
 
-static double hihat(unsigned index, double tick){
+double synth::hihat(unsigned index, double tick){
 	percussion_buf[index]--;
-	double foo = (1 - (percussion_buf[index] / 4000.0)) / 8;
+	double foo = (1 - (percussion_buf[index] / perc_time)) / 8;
 
 	double a = white_noise() * foo;
 	double b = squarewave(tick * note(24)) * (foo / 4);
@@ -123,7 +123,7 @@ static double hihat(unsigned index, double tick){
 	return x;
 }
 
-static double do_percussion(unsigned index, double tick){
+double synth::do_percussion(unsigned index, double tick){
 	switch (index) {
 		case 0:
 		case 1:  return kick(index, tick);
@@ -159,7 +159,7 @@ static double synth_lead(double tick, unsigned key){
 static double synth_pad(double tick, unsigned key){
 	double foo = sin(tick / 100)/8;
 
-	return clipped_sin(tick * note(key), 0.7 + foo) * 0.70;
+	return clipped_sin(tick * note(key), 0.3 + foo) * 0.70;
 }
 
 static double synth_bass(double tick, unsigned key){
@@ -269,7 +269,7 @@ int16_t synth::next_sample(void){
 			// handle percussion channel
 			if (k == 9){
 				if (key >= 35 && key <= 81 && !percussion_buf[key - 35]){
-					percussion_buf[key - 35] = 4000;
+					percussion_buf[key - 35] = perc_time;
 				}
 				continue;
 			}
